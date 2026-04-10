@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from database import get_session
-from models.instance import Instance, InstanceCreate, InstanceRead
+from models.instance import Instance, InstanceCreate, InstanceRead, InstanceUpdate
 from models.solution import SolutionRead
 from services.solver_service import run_solver
 
@@ -32,6 +32,18 @@ def get_instance(instance_id: int, session: SessionDep) -> Instance:
     instance = session.get(Instance, instance_id)
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found")
+    return instance
+
+
+@router.put("/{instance_id}", response_model=InstanceRead)
+def update_instance(instance_id: int, body: InstanceUpdate, session: SessionDep) -> Instance:
+    instance = session.get(Instance, instance_id)
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    instance.name = body.name
+    instance.params = body.params.model_dump()
+    session.commit()
+    session.refresh(instance)
     return instance
 
 

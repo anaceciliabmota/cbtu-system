@@ -71,6 +71,11 @@ class InstanceCreate(SQLModel):
     }
 
 
+class InstanceUpdate(SQLModel):
+    name: str
+    params: InstanceParams
+
+
 class InstanceRead(SQLModel):
     id: int
     name: str
