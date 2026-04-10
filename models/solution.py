@@ -28,7 +28,7 @@ class SolutionResult(SQLModel):
 
 class Solution(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    instance_id: int = Field(foreign_key="instance.id", unique=True)
+    instance_id: int = Field(foreign_key="instance.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: str
     result: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))

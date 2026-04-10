@@ -10,6 +10,7 @@ from time import sleep
 def solve(params: dict) -> dict:
     # TODO: replace with real algorithm implementation
     sleep(5)
+    print(params)
     return {
         "total_time": 0.0,
         "solution_value": 0,
