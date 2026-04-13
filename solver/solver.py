@@ -4,34 +4,28 @@ Receives instance params and returns a result dict.
 No dependency on the API or database layers.
 """
 
-from time import sleep
 
+from solver.data import Data
+from solver.model import ModelTrainTimetabling
+from solver.heuristic import Heuristic
+
+SOLVER = "GUROBI"
+THREADS = 1
 
 def solve(params: dict) -> dict:
-    # TODO: replace with real algorithm implementation
-    sleep(5)
-    print(params)
-    return {
-        "total_time": 0.0,
-        "solution_value": 0,
-        "trains": [
-            {
-                "id": 1,
-                "trips": [
-                    {
-                        "id": 1,
-                        "stops": [],
-                    },
-                ],
-            },
-            {
-                "id": 2,
-                "trips": [
-                    {
-                        "id": 1,
-                        "stops": [],
-                    },
-                ],
-            },
-        ],
-    }
+
+    data = Data()
+    data.read_data_from_dict(params)
+    # data.print_data()
+
+    # call model to solve the problem
+    # model = ModelTrainTimetabling(data, THREADS, 21600, 21600, SOLVER)
+    # model.initialize()
+    # model.execute_solver_for_full_model()
+    # model.current_solution.display_solution(data, "model")
+
+    # call heuristic to solve the problem
+    heuristic = Heuristic(data, THREADS, 21600, 21600, SOLVER)
+    total_time = heuristic.execute_heuristic()
+
+    return heuristic.overall_best_sol.get_solution(data, round(total_time, 2))

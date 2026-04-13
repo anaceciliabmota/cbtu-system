@@ -13,6 +13,7 @@ INSTANCE_PAYLOAD = {
         "num_trains": 2,
         "num_trips": [6, 6],
         "time_intervals": [[0, 61598]],
+        "num_points": 5,
         "stations": [0, 4, 2, 1, 3],
         "crossings": [0, 4, 2],
         "depots": [0, 4],
