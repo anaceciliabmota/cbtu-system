@@ -83,13 +83,14 @@ def validate(base, train_data, points_data, intervals_data, free) -> list[str]:
 
 
 def build_params(base, train_data, points_data, intervals_data, free) -> dict:
-    num_trains, _, _ = base
+    num_trains, num_points, _ = base
     num_trips, routes = train_data
     service_time_min, service_time_max, cost_matrix, demands = points_data
     return {
         "num_trains": int(num_trains),
         "num_trips": num_trips,
         "time_intervals": intervals_data,
+        "num_points": int(num_points),
         "stations": parse_int_list(free["stations"]),
         "crossings": parse_int_list(free["crossings"]),
         "depots": parse_int_list(free["depots"]),

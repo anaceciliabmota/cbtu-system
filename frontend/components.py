@@ -9,7 +9,7 @@ def params_to_defaults(params: dict) -> dict:
     intervals = params.get("time_intervals", [])
     return {
         "num_trains": params.get("num_trains"),
-        "num_points": len(stmin) if stmin else None,
+        "num_points": params["num_points"] if "num_points" in params else (len(stmin) if stmin else None),
         "num_intervals": len(intervals) if intervals else None,
         "num_trips": params.get("num_trips", []),
         "routes": params.get("routes", []),

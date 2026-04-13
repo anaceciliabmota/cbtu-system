@@ -8,6 +8,7 @@ class InstanceParams(SQLModel):
     num_trains: int
     num_trips: list[int]
     time_intervals: list[list[int]]
+    num_points: int
     stations: list[int]
     crossings: list[int]
     depots: list[int]
@@ -40,6 +41,7 @@ class InstanceCreate(SQLModel):
                     "num_trains": 2,
                     "num_trips": [6, 6],
                     "time_intervals": [[0, 61598]],
+                    "num_points": 5,
                     "stations": [0, 4, 2, 1, 3],
                     "crossings": [0, 4, 2],
                     "depots": [0, 4],
