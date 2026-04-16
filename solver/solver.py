@@ -9,7 +9,7 @@ from solver.data import Data
 from solver.model import ModelTrainTimetabling
 from solver.heuristic import Heuristic
 
-SOLVER = "GUROBI"
+SOLVER = "HIGHS"
 THREADS = 1
 
 def solve(params: dict) -> dict:
