@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import field_validator
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
@@ -17,9 +18,16 @@ class InstanceParams(SQLModel):
     service_time_min: list[int]
     service_time_max: list[int]
     cost_matrix: list[list[int]]
-    demands: list[int]
+    demands: list[list[int]]
     max_time: int
     alpha: int
+
+    @field_validator("demands", mode="before")
+    @classmethod
+    def coerce_demands(cls, v: Any) -> list[list[int]]:
+        if v and isinstance(v[0], int):
+            return [[x] for x in v]
+        return v
 
 
 class Instance(SQLModel, table=True):
@@ -64,7 +72,7 @@ class InstanceCreate(SQLModel):
                         [-1,  -1,  -1,  -1,  -1, -1, -1, 703, -1, -1],
                         [-1,  -1,  -1,  -1,   0, -1, -1, -1, 664, -1],
                     ],
-                    "demands": [11, 11, 11, 11, 0, 0, 11, 11, 11, 11],
+                    "demands": [[11], [11], [11], [11], [0], [0], [11], [11], [11], [11]],
                     "max_time": 61598,
                     "alpha": 41,
                 },

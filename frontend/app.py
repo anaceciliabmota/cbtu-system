@@ -29,7 +29,7 @@ def validate_int_list(text: str, field: str) -> str | None:
 
 def validate(base, train_data, points_data, intervals_data, free) -> list[str]:
     errors = []
-    num_trains, num_points, num_intervals = base
+    num_trains, num_routes, num_points, num_intervals = base
     num_trips, routes = train_data
     stmin, stmax, _, demands = points_data
 
@@ -37,17 +37,19 @@ def validate(base, train_data, points_data, intervals_data, free) -> list[str]:
         errors.append("Nome da instância é obrigatório.")
     if not num_trains:
         errors.append("Número de trens é obrigatório.")
+    if not num_routes:
+        errors.append("Número de rotas é obrigatório.")
     if not num_points:
         errors.append("Número de pontos é obrigatório.")
     if not num_intervals:
         errors.append("Número de intervalos é obrigatório.")
 
-    if num_trains:
+    if num_trains and num_routes:
         if len(num_trips) < int(num_trains):
             errors.append("Preencha o máximo de viagens para todos os trens.")
         empty_routes = [i for i, r in enumerate(routes) if not r]
         if empty_routes:
-            errors.append(f"Rota vazia para o(s) trem(ns): {empty_routes}.")
+            errors.append(f"Rota(s) vazia(s): {empty_routes}.")
 
     if num_points:
         n = int(num_points)
@@ -83,7 +85,7 @@ def validate(base, train_data, points_data, intervals_data, free) -> list[str]:
 
 
 def build_params(base, train_data, points_data, intervals_data, free) -> dict:
-    num_trains, num_points, _ = base
+    num_trains, _, num_points, _ = base
     num_trips, routes = train_data
     service_time_min, service_time_max, cost_matrix, demands = points_data
     return {
@@ -141,20 +143,20 @@ st.divider()
 default_name = st.text_input("Nome da instância", value=default_name, placeholder="ex: instancia-1", key=f"{fk}_name")
 
 base = render_base_fields(defaults, fk)
-num_trains, num_points, num_intervals = base
+num_trains, num_routes, num_points, num_intervals = base
 
 st.divider()
 
-if num_trains:
-    train_data = render_train_fields(int(num_trains), defaults, fk)
+if num_trains and num_routes:
+    train_data = render_train_fields(int(num_trains), int(num_routes), defaults, fk)
 else:
-    st.caption("Preencha o número de trens para definir viagens e rotas.")
+    st.caption("Preencha o número de trens e de rotas para definir viagens e rotas.")
     train_data = ([], [])
 
 st.divider()
 
-if num_points:
-    points_data = render_points_fields(int(num_points), defaults, fk)
+if num_points and num_intervals:
+    points_data = render_points_fields(int(num_points), int(num_intervals), defaults, fk)
 else:
     st.caption("Preencha o número de pontos para definir service times, cost matrix e demands.")
     points_data = ([], [], [], [])

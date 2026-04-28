@@ -11,6 +11,7 @@ def params_to_defaults(params: dict) -> dict:
         "num_trains": params.get("num_trains"),
         "num_points": params["num_points"] if "num_points" in params else (len(stmin) if stmin else None),
         "num_intervals": len(intervals) if intervals else None,
+        "num_routes": len(params.get("routes", [])) or None,
         "num_trips": params.get("num_trips", []),
         "routes": params.get("routes", []),
         "service_time_min": params.get("service_time_min", []),
@@ -47,14 +48,15 @@ def _number_inputs_in_rows(label: str, n: int, defaults: list, key_prefix: str, 
 
 
 def render_base_fields(d: dict, fk: str) -> tuple:
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     num_trains = col1.number_input("Número de trens", value=d["num_trains"], min_value=1, step=1, placeholder="ex: 2", key=f"{fk}_num_trains")
-    num_points = col2.number_input("Número de pontos", value=d["num_points"], min_value=1, step=1, placeholder="ex: 5", key=f"{fk}_num_points")
-    num_intervals = col3.number_input("Número de intervalos", value=d["num_intervals"], min_value=1, step=1, placeholder="ex: 1", key=f"{fk}_num_intervals")
-    return num_trains, num_points, num_intervals
+    num_routes = col2.number_input("Número de rotas", value=d["num_routes"], min_value=1, step=1, placeholder="ex: 7", key=f"{fk}_num_routes")
+    num_points = col3.number_input("Número de pontos", value=d["num_points"], min_value=1, step=1, placeholder="ex: 5", key=f"{fk}_num_points")
+    num_intervals = col4.number_input("Número de intervalos", value=d["num_intervals"], min_value=1, step=1, placeholder="ex: 1", key=f"{fk}_num_intervals")
+    return num_trains, num_routes, num_points, num_intervals
 
 
-def render_train_fields(num_trains: int, d: dict, fk: str) -> tuple:
+def render_train_fields(num_trains: int, num_routes: int, d: dict, fk: str) -> tuple:
     num_trips_vals = _number_inputs_in_rows(
         "Máx. viagens por trem", num_trains, d["num_trips"], f"{fk}_trips_", placeholder="ex: 6"
     )
@@ -62,12 +64,12 @@ def render_train_fields(num_trains: int, d: dict, fk: str) -> tuple:
     st.markdown("**Rotas** (nós separados por espaço)")
     route_inputs = [
         st.text_input(
-            f"Trem {i}",
+            f"Rota {i}",
             value=" ".join(str(n) for n in d["routes"][i]) if i < len(d["routes"]) else "",
             placeholder="ex: 0 1 2 3 4 9 8 7 6 5 0",
             key=f"{fk}_route_{i}",
         )
-        for i in range(num_trains)
+        for i in range(num_routes)
     ]
     routes = [[int(n) for n in r.split() if n] for r in route_inputs]
     num_trips = [int(v) for v in num_trips_vals if v is not None]
@@ -113,7 +115,28 @@ def render_connections(matrix_size: int) -> list[list[int]]:
     return connections_to_matrix(st.session_state.connections, matrix_size)
 
 
-def render_points_fields(num_points: int, d: dict, fk: str) -> tuple:
+def _demands_matrix_inputs(matrix_size: int, num_intervals: int, defaults: list[list[int]], key_prefix: str) -> list[list[int | None]]:
+    st.markdown(f"**Demands ({matrix_size} nós × {num_intervals} intervalos)**")
+    result = []
+    for i in range(matrix_size):
+        row_defaults = defaults[i] if i < len(defaults) else []
+        cols = st.columns(num_intervals)
+        row = []
+        for h in range(num_intervals):
+            val = cols[h].number_input(
+                f"nó {i} / int {h}",
+                value=int(row_defaults[h]) if h < len(row_defaults) else None,
+                min_value=0,
+                step=1,
+                placeholder="ex: 11",
+                key=key_prefix + f"{i}_{h}",
+            )
+            row.append(val)
+        result.append(row)
+    return result
+
+
+def render_points_fields(num_points: int, num_intervals: int, d: dict, fk: str) -> tuple:
     matrix_size = num_points * 2
 
     stmin = _number_inputs_in_rows("Service time mínimo (s)", num_points, d["service_time_min"], f"{fk}_stmin_", "ex: 142")
@@ -121,13 +144,13 @@ def render_points_fields(num_points: int, d: dict, fk: str) -> tuple:
 
     cost_matrix = render_connections(matrix_size)
 
-    demands = _number_inputs_in_rows(f"Demands ({matrix_size} nós)", matrix_size, d["demands"], f"{fk}_demand_", "ex: 11")
+    demands_raw = _demands_matrix_inputs(matrix_size, num_intervals, d["demands"], f"{fk}_demand_")
 
     return (
         [int(v) for v in stmin if v is not None],
         [int(v) for v in stmax if v is not None],
         cost_matrix,
-        [int(v) for v in demands if v is not None],
+        [[int(v) for v in row if v is not None] for row in demands_raw],
     )
 
 
