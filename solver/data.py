@@ -312,8 +312,7 @@ class Data:
                         self.distance_and_service_max[arc_idx] = dist
 
         # storing demands
-        # TODO: generalizar para instâncias com vários intervalos
-        self.demands = [[x] for x in data["demands"]]
+        self.demands =  data["demands"]
         # calculate demand per day for each vertex
         self.demand_per_day = [0] * nb_vertices
         for i in range(nb_vertices):
