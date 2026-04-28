@@ -1,7 +1,19 @@
+from datetime import time as dt_time
+
 import pandas as pd
 import streamlit as st
 
 COLS_PER_ROW = 5
+
+
+def _seconds_to_time(seconds: int) -> dt_time:
+    h = (seconds // 3600) % 24
+    m = (seconds % 3600) // 60
+    return dt_time(h, m)
+
+
+def _time_to_seconds(t: dt_time) -> int:
+    return t.hour * 3600 + t.minute * 60
 
 
 def params_to_defaults(params: dict) -> dict:
@@ -18,12 +30,12 @@ def params_to_defaults(params: dict) -> dict:
         "service_time_max": params.get("service_time_max", []),
         "cost_matrix": params.get("cost_matrix", []),
         "demands": params.get("demands", []),
-        "time_intervals": intervals,
+        "time_intervals": [[_seconds_to_time(s), _seconds_to_time(e)] for s, e in intervals] if intervals else [],
+        "max_time": _seconds_to_time(params.get("max_time") or 0),
         "stations": ", ".join(str(x) for x in params.get("stations", [])),
         "crossings": ", ".join(str(x) for x in params.get("crossings", [])),
         "depots": ", ".join(str(x) for x in params.get("depots", [])),
         "initial_point": params.get("initial_point"),
-        "max_time": params.get("max_time"),
         "alpha": params.get("alpha"),
     }
 
@@ -155,30 +167,30 @@ def render_points_fields(num_points: int, num_intervals: int, d: dict, fk: str) 
 
 
 def render_intervals_fields(num_intervals: int, d: dict, fk: str) -> list[list[int]]:
-    st.markdown("**Intervalos de tempo** (segundos)")
+    st.markdown("**Intervalos de tempo**")
+    row = d["time_intervals"]
     intervals = []
     for i in range(num_intervals):
-        default_start = d["time_intervals"][i][0] if i < len(d["time_intervals"]) else None
-        default_end = d["time_intervals"][i][1] if i < len(d["time_intervals"]) else None
+        default_start = row[i][0] if i < len(row) else dt_time(0, 0)
+        default_end = row[i][1] if i < len(row) else dt_time(0, 0)
         col1, col2 = st.columns(2)
-        start = col1.number_input(f"Intervalo {i} — início", value=default_start, min_value=0, step=1, placeholder="ex: 0", key=f"{fk}_int_start_{i}")
-        end = col2.number_input(f"Intervalo {i} — fim", value=default_end, min_value=0, step=1, placeholder="ex: 61598", key=f"{fk}_int_end_{i}")
-        if start is not None and end is not None:
-            intervals.append([int(start), int(end)])
+        start = col1.time_input(f"Intervalo {i} — início", value=default_start, step=60, key=f"{fk}_int_start_{i}")
+        end = col2.time_input(f"Intervalo {i} — fim", value=default_end, step=60, key=f"{fk}_int_end_{i}")
+        intervals.append([_time_to_seconds(start), _time_to_seconds(end)])
     return intervals
 
 
 def render_free_fields(d: dict, fk: str) -> dict:
     col1, col2, col3 = st.columns(3)
     initial_point = col1.number_input("initial_point", value=d["initial_point"], min_value=0, step=1, placeholder="ex: 0", key=f"{fk}_initial_point")
-    max_time = col2.number_input("max_time (s)", value=d["max_time"], min_value=0, step=1, placeholder="ex: 61598", key=f"{fk}_max_time")
+    max_time_val = col2.time_input("max_time", value=d["max_time"], step=60, key=f"{fk}_max_time")
     alpha = col3.number_input("alpha", value=d["alpha"], min_value=0, step=1, placeholder="ex: 41", key=f"{fk}_alpha")
     stations = st.text_input("stations (vírgula)", value=d["stations"], placeholder="ex: 0, 4, 2, 1, 3", key=f"{fk}_stations")
     crossings = st.text_input("crossings (vírgula)", value=d["crossings"], placeholder="ex: 0, 4, 2", key=f"{fk}_crossings")
     depots = st.text_input("depots (vírgula)", value=d["depots"], placeholder="ex: 0, 4", key=f"{fk}_depots")
     return {
         "initial_point": initial_point,
-        "max_time": max_time,
+        "max_time": _time_to_seconds(max_time_val),
         "alpha": alpha,
         "stations": stations,
         "crossings": crossings,
