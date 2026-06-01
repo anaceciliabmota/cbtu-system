@@ -21,6 +21,11 @@ def update_instance(instance_id: int, name: str, params: dict) -> dict:
     return r.json()
 
 
+def delete_instance(instance_id: int) -> None:
+    r = httpx.delete(f"{BASE_URL}/instances/{instance_id}", timeout=TIMEOUT)
+    r.raise_for_status()
+
+
 def run_solver(instance_id: int) -> dict:
     r = httpx.post(f"{BASE_URL}/instances/{instance_id}/run", timeout=TIMEOUT)
     r.raise_for_status()

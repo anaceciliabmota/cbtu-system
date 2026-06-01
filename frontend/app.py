@@ -1,6 +1,6 @@
 import streamlit as st
 
-from api import create_instance, get_instances, run_solver, update_instance
+from api import create_instance, delete_instance, get_instances, run_solver, update_instance
 from components import (
     matrix_to_connections,
     params_to_defaults,
@@ -117,6 +117,8 @@ if "connections" not in st.session_state:
     st.session_state.connections = []
 if "last_selection" not in st.session_state:
     st.session_state.last_selection = None
+if "confirm_delete" not in st.session_state:
+    st.session_state.confirm_delete = False
 
 # ── Header ────────────────────────────────────────────────────────────────────
 
@@ -125,14 +127,45 @@ st.title("CBTU Solver")
 instances = get_instances()
 options = {f"{i['name']} (id={i['id']})": i for i in instances}
 
-selection = st.selectbox("Instância", options=["Nova instância"] + list(options.keys()))
+col_select, col_delete = st.columns([11, 1])
+with col_select:
+    selection = st.selectbox("Instância", options=["Nova instância"] + list(options.keys()))
 selected = options[selection] if selection != "Nova instância" else None
+with col_delete:
+    st.write("")
+    delete_clicked = selected is not None and st.button(
+        "🗑️", help="Excluir instância selecionada", key="delete_instance_btn"
+    )
+
+if delete_clicked and selected:
+    st.session_state.confirm_delete = True
+
+if st.session_state.confirm_delete and selected:
+    st.warning(f"Excluir a instância **{selected['name']}** (id={selected['id']})? Esta ação não pode ser desfeita.")
+    c_confirm, c_cancel = st.columns(2)
+    if c_confirm.button("Confirmar exclusão", type="primary", use_container_width=True):
+        try:
+            deleted_id = selected["id"]
+            delete_instance(deleted_id)
+            if st.session_state.active_id == deleted_id:
+                st.session_state.active_id = None
+                st.session_state.solution = None
+            st.session_state.confirm_delete = False
+            st.session_state.last_selection = None
+            st.success(f"Instância id={deleted_id} excluída.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao excluir: {e}")
+    if c_cancel.button("Cancelar", use_container_width=True):
+        st.session_state.confirm_delete = False
+        st.rerun()
 defaults = params_to_defaults(selected["params"]) if selected else params_to_defaults({})
 default_name = selected["name"] if selected else ""
 fk = str(selected["id"]) if selected else "new"
 
 if selection != st.session_state.last_selection:
     st.session_state.last_selection = selection
+    st.session_state.confirm_delete = False
     matrix = selected["params"].get("cost_matrix", []) if selected else []
     st.session_state.connections = matrix_to_connections(matrix)
 
