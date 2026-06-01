@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from database import get_session
 from models.instance import Instance, InstanceCreate, InstanceRead, InstanceUpdate
-from models.solution import SolutionRead
+from models.solution import Solution, SolutionRead
 from services.solver_service import run_solver
 
 router = APIRouter(prefix="/instances", tags=["instances"])
@@ -33,6 +33,17 @@ def get_instance(instance_id: int, session: SessionDep) -> Instance:
     if not instance:
         raise HTTPException(status_code=404, detail="Instance not found")
     return instance
+
+
+@router.delete("/{instance_id}", status_code=204)
+def delete_instance(instance_id: int, session: SessionDep) -> None:
+    instance = session.get(Instance, instance_id)
+    if not instance:
+        raise HTTPException(status_code=404, detail="Instance not found")
+    for solution in session.exec(select(Solution).where(Solution.instance_id == instance_id)).all():
+        session.delete(solution)
+    session.delete(instance)
+    session.commit()
 
 
 @router.put("/{instance_id}", response_model=InstanceRead)
