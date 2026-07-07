@@ -104,6 +104,40 @@ class Heuristic:
             if self.improved_sol:
                 self.improved_sol_iter = True
 
+    def execute_heuristic(self):
+
+        self.start_time = time.time()
+        self.time_limit_reached = False
+
+        self.create_initial_candidates() # create baseline combinations
+        for S in range(sum(self.data.max_trips_per_train), 0, -1):
+            self.current_max_trips_per_train_list = self.calculate_max_trips_per_train(S, self.data.max_trips_per_train)
+            self.try_combinations()
+            if self.overall_best_sol.feasible and not self.improved_sol_iter:
+                break
+
+        # if did not find any feasible solution, try again considering new routes 
+        if not self.overall_best_sol.feasible and self.try_new_set_of_routes():
+            for S in range(sum(self.data.max_trips_per_train), 0, -1):
+                self.current_max_trips_per_train_list = self.calculate_max_trips_per_train(S, self.data.max_trips_per_train)
+                self.try_combinations()
+                if self.overall_best_sol.feasible and not self.improved_sol_iter:
+                    break
+        
+        end_time = time.time()
+        total_time = end_time - self.start_time
+        
+        if self.time_limit_reached:
+            print("\n-> Time limit reached. Displaying best solution found so far...\n")
+        else:
+            print("\nFinished heuristic!\n")
+        
+        print(f"-> Total time = {total_time:.2f}", end="")
+
+        self.overall_best_sol.rescale_values("heuristic")
+
+        return total_time
+
     def create_cyclical_routes_set(self):
         have_full_cycles = False
         have_cycles = False
@@ -191,7 +225,7 @@ class Heuristic:
         self.create_cyclical_routes_set()
         self.create_initial_valid_routes_set()
 
-        print(f"\nCreating baseline combinations...")
+        print(f"\nCreating initial set of candidate combinations...")
 
         self.create_baseline_combinations()
 
@@ -232,6 +266,7 @@ class Heuristic:
 
         model_thread = self.thread_local.model
             
+        # print(f"Solving combination: {candidate_combination}")
         model_thread.reset()
         model_thread.create_model_for_combination(candidate_combination)
         
@@ -296,39 +331,3 @@ class Heuristic:
             
             # wait for the tasks to finish
             executor.shutdown(wait=True)
-
-
-    def execute_heuristic(self):
-
-        self.start_time = time.time()
-        self.time_limit_reached = False
-
-        self.create_initial_candidates() # create baseline combinations
-        for S in range(sum(self.data.max_trips_per_train), 0, -1):
-            self.current_max_trips_per_train_list = self.calculate_max_trips_per_train(S, self.data.max_trips_per_train)
-            self.try_combinations()
-            if self.overall_best_sol.feasible and not self.improved_sol_iter:
-                break
-
-        # if did not find any feasible solution, try again considering new routes 
-        if not self.overall_best_sol.feasible and self.try_new_set_of_routes():
-            for S in range(sum(self.data.max_trips_per_train), 0, -1):
-                self.current_max_trips_per_train_list = self.calculate_max_trips_per_train(S, self.data.max_trips_per_train)
-                self.try_combinations()
-                if self.overall_best_sol.feasible and not self.improved_sol_iter:
-                    break
-        
-        end_time = time.time()
-        total_time = end_time - self.start_time
-        
-        if self.time_limit_reached:
-            print("\n-> Time limit reached. Displaying best solution found so far...\n")
-        else:
-            print("\nFinished heuristic!\n")
-        
-        # print(f"-> Total time = {total_time:.2f}", end="")
-        # self.overall_best_sol.display_solution(self.data, "heuristic", self.time_limit_reached)
-        # self.overall_best_sol.save_solution(self.data, total_time, "heuristic", self.time_limit_reached, self.nb_threads)
-        # self.overall_best_sol.create_graph(self.data, "heuristic", self.nb_threads)
-
-        return total_time
