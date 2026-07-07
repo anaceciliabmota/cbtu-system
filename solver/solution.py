@@ -49,6 +49,24 @@ class Solution:
     def display_value_of_variables(self):
         pass
 
+    def rescale_values(self, method):
+        self.obj_value = self.obj_value * 1000
+        if method == "model":
+            self.lower_bound = self.lower_bound * 1000
+
+        if self.y_values is not None:
+            for t in range(len(self.y_values)):
+                for i in range(len(self.y_values[t])):
+                    for v in range(len(self.y_values[t][i])):
+                        if self.y_values[t][i][v] != 0:
+                            self.y_values[t][i][v] *= 1000
+        if self.y_bar_values is not None:
+            for t in range(len(self.y_bar_values)):
+                for i in range(len(self.y_bar_values[t])):
+                    for v in range(len(self.y_bar_values[t][i])):
+                        if self.y_bar_values[t][i][v] != 0:
+                            self.y_bar_values[t][i][v] *= 1000
+
     def get_solution(self, data, total_time: float = 0.0) -> dict:
         """Monta o dicionário no formato da API"""
         if not self.feasible or self.lambda_values is None:
