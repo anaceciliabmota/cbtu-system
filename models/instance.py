@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
@@ -21,6 +21,8 @@ class InstanceParams(SQLModel):
     demands: list[list[int]]
     max_time: int
     alpha: int
+    point_names: list[str] | None = None
+    line: dict[str, Any] | None = None
 
     @field_validator("demands", mode="before")
     @classmethod
@@ -39,7 +41,14 @@ class Instance(SQLModel, table=True):
 
 class InstanceCreate(SQLModel):
     name: str
-    params: InstanceParams
+    params: InstanceParams | None = None
+    line: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def require_params_or_line(self) -> "InstanceCreate":
+        if self.params is None and self.line is None:
+            raise ValueError("Informe params ou line")
+        return self
 
     model_config = {
         "json_schema_extra": {
@@ -83,11 +92,20 @@ class InstanceCreate(SQLModel):
 
 class InstanceUpdate(SQLModel):
     name: str
-    params: InstanceParams
+    params: InstanceParams | None = None
+    line: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def require_params_or_line(self) -> "InstanceUpdate":
+        if self.params is None and self.line is None:
+            raise ValueError("Informe params ou line")
+        return self
 
 
 class InstanceRead(SQLModel):
     id: int
     name: str
     created_at: datetime
-    params: InstanceParams
+    params: dict[str, Any]
+    line: dict[str, Any]
+    last_run: str = "never"

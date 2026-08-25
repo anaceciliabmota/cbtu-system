@@ -1,0 +1,5 @@
+[layout]
+width = "wide"
+
+[browser]
+gatherUsageStats = false

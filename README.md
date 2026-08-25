@@ -13,14 +13,15 @@ O CBTU Solver é uma aplicação web que permite:
 3. **Ver os resultados** — as rotas e horários gerados para cada trem
 
 A aplicação tem duas partes:
-- **Backend (API)**: recebe os dados, salva no banco e executa o solver
-- **Frontend (interface visual)**: formulário para preencher os dados e ver os resultados
+- **Backend (API)**: recebe os dados, salva no banco, **compila** o modelo visual da linha e executa o solver
+- **Frontend (interface visual)**: estúdio React em `Line Planner/` para desenhar a linha, rotas, frota e demanda
 
 ---
 
 ## Pré-requisitos
 
 - **Python 3.12 ou superior** instalado na máquina
+- **Node.js 20.19+** (Vite 8). Se o `node -v` mostrar v18, use o nvm: `nvm use` dentro de `Line Planner/`
 - Acesso ao terminal (Prompt de Comando no Windows, Terminal no Linux/Mac)
 
 Para verificar se o Python está instalado:
@@ -64,7 +65,7 @@ Você saberá que funcionou quando aparecer `(.venv)` no início da linha do ter
 ### 4. Instale as dependências
 
 ```bash
-pip install -r requirements.txt
+pip install -r frontend/requirements.txt
 ```
 
 Isso pode demorar alguns minutos na primeira vez.
@@ -90,104 +91,118 @@ INFO: Application startup complete.
 
 Isso significa que o backend está rodando. **Mantenha este terminal aberto.**
 
-### Terminal 2 — Frontend (Interface visual)
+### Terminal 2 — Frontend React (interface principal)
 
-Abra um novo terminal, ative o ambiente virtual novamente e execute:
+Na primeira vez, instale as dependências do frontend:
+
+```bash
+cd "Line Planner"
+nvm use          # Node 22 — o Vite 8 não roda no Node 18 do sistema
+npm install
+cp .env.example .env   # opcional; padrão aponta para http://localhost:8000
+```
+
+Depois, em qualquer sessão:
+
+```bash
+cd "Line Planner"
+nvm use
+npm run dev
+```
+
+Abra a URL que o Vite imprimir (em geral **http://localhost:8080** ou **http://localhost:3000**).
+
+Variável opcional em `Line Planner/.env`:
+
+```
+VITE_API_URL=http://localhost:8000
+```
+
+O backend aceita requisições do frontend via CORS. Por padrão as origens `http://localhost:5173`, `http://localhost:8080` e `http://localhost:3000` estão liberadas. Para outras origens (produção), defina `CORS_ORIGINS` ao subir o uvicorn, por exemplo:
+
+```bash
+CORS_ORIGINS=http://localhost:8080,https://seu-dominio.com uvicorn main:app --reload
+```
+
+### Frontend legado (Streamlit)
+
+A interface antiga em Streamlit ainda está disponível, mas **não é mais a interface recomendada**:
 
 ```bash
 source .venv/bin/activate   # Linux/Mac
-# ou
-.venv\Scripts\activate      # Windows
-
 streamlit run frontend/app.py
 ```
 
-O navegador abrirá automaticamente em `http://localhost:8501` com a interface do sistema.
+Abre em `http://localhost:8501`.
 
 ---
 
 ## Como usar a interface
 
-### Passo 1 — Escolha ou crie uma instância
+### Passo 1 — Crie ou abra um cenário
 
-No topo da página há um campo chamado **"Instância"**. Você pode:
+Na tela inicial, use **Novo cenário** (ou **Carregar exemplo** para o Metrô Recife). Cada cartão é um cenário salvo no backend.
 
-- Selecionar uma instância já existente (se houver)
-- Deixar em **"Nova instância"** para criar uma do zero
+### Passo 2 — Modele a linha
 
-### Passo 2 — Preencha o nome
+No editor, a aba **1 · Linha** deixa você:
 
-O primeiro campo é o nome da instância. Use um nome descritivo, por exemplo: `linha-1-cenario-A`.
+- adicionar pontos, nomes, funções (estação, cruzamento, depósito) e tempos de parada
+- informar a distância de cada trecho
+- escolher o depósito inicial e o horizonte do dia (início e fim)
 
-### Passo 3 — Preencha os campos base
+### Passo 3 — Defina rotas
 
-Estes três campos desbloqueiam o restante do formulário:
+Em **2 · Rotas**, monte a sequência de pontos de cada padrão de serviço. A rota precisa começar e terminar em depósito; inversão de sentido só em cruzamento.
 
-| Campo | O que significa |
-|-------|----------------|
-| **Número de trens** | Quantos trens existem no problema |
-| **Número de pontos** | Quantos nós (pontos) existem na linha |
-| **Número de intervalos** | Quantos intervalos de tempo o problema considera |
+### Passo 4 — Frota e demanda
 
-Assim que estes campos forem preenchidos, os demais campos aparecem automaticamente.
+Em **3 · Frota e demanda**:
 
-### Passo 4 — Preencha os campos dinâmicos
+- cadastre os trens e o máximo de viagens de cada um
+- desenhe os períodos de demanda no dia
+- preencha quantos trens devem partir de cada ponto/sentido em cada período
+- ajuste o espaçamento mínimo (**alpha**) entre partidas
 
-**Dependentes do número de trens:**
-- **Máx. viagens por trem**: para cada trem, informe o máximo de viagens que ele pode fazer
-- **Rotas**: para cada trem, informe a sequência de nós que ele percorre (separados por espaço), ex: `0 1 2 3 4 9 8 7 6 5 0`
+### Passo 5 — Execute o solver
 
-**Dependentes do número de pontos:**
-- **Service time mínimo**: tempo mínimo de parada em cada ponto (em segundos)
-- **Service time máximo**: tempo máximo de parada em cada ponto (em segundos)
-- **Cost matrix**: matriz de custos entre os nós — os valores representam o custo de ir de um nó ao outro; `-1` significa que não há ligação direta
-- **Demands**: demanda em cada nó (o número de passageiros ou unidades a atender)
+O cenário é salvo automaticamente no backend. Em **4 · Executar**, clique em **Executar solver**. O backend:
 
-**Dependentes do número de intervalos:**
-- **Intervalos de tempo**: para cada intervalo, informe o segundo de início e o segundo de fim
+1. Compila o modelo visual para a matriz 2N, rotas em vértices e demandas por intervalo (`compiler/`)
+2. Normaliza os horários para o horizonte começar em 0s
+3. Roda o solver e devolve a grade de horários
 
-**Campos livres (sempre visíveis):**
-- **initial_point**: nó onde todos os trens começam
-- **max_time**: horizonte de tempo máximo do problema (em segundos)
-- **alpha**: parâmetro interno do algoritmo
-- **stations**: índices dos nós que são estações (separados por vírgula), ex: `0, 4, 2, 1, 3`
-- **crossings**: índices dos nós que são cruzamentos, ex: `0, 4, 2`
-- **depots**: índices dos nós que são depósitos, ex: `0, 4`
+### Passo 6 — Veja os resultados
 
-### Passo 5 — Salve a instância
-
-Dois botões estão disponíveis:
-
-- **Salvar como nova instância**: cria uma nova entrada no banco com os dados preenchidos
-- **Salvar alterações**: atualiza a instância que foi selecionada no início (só aparece habilitado se uma instância existente foi selecionada)
-
-Após salvar, uma mensagem de confirmação aparece com o ID da instância salva.
-
-### Passo 6 — Execute o solver
-
-Após salvar (ou selecionar uma instância existente), o botão **"▶ Executar Solver"** fica disponível.
-
-Clique nele. O sistema pode demorar alguns minutos dependendo do tamanho do problema. Uma animação de carregamento aparece enquanto o solver trabalha.
-
-### Passo 7 — Veja os resultados
-
-A solução é exibida logo abaixo com:
-
-- **Solution value**: valor da função objetivo da solução encontrada
-- **Tempo de execução**: quantos segundos o solver levou para rodar
-- Por trem: uma seção expansível com todas as viagens e paradas, incluindo horário de chegada e partida em cada ponto
+A aba **Resultados** mostra valor objetivo, tempo de execução, linhas de tempo por trem e o diagrama espaço-tempo. Os horários voltam para o relógio do dia (não o tempo relativo do solver).
 
 ---
 
 ## Executar os testes
 
-Com o backend rodando (Terminal 1 ativo), abra um terceiro terminal e execute:
+**Compilador** (sem servidor):
 
 ```bash
-python test_api.py
+python3 tests/test_line_map.py
+python3 tests/test_visual_compile.py
 ```
 
-Isso testa automaticamente todos os endpoints da API e imprime OK ou FALHOU para cada um.
+**Backend** (com o servidor rodando):
+
+```bash
+pytest tests/
+# ou
+python3 tests/test_api.py
+```
+
+**Build de produção do frontend:**
+
+```bash
+cd "Line Planner"
+npm run build
+```
+
+Sirva a pasta gerada pelo Vite (`.output` / `dist`) com nginx ou outro servidor; configure `VITE_API_URL` para a URL pública da API no momento do build.
 
 ---
 
@@ -197,8 +212,16 @@ Isso testa automaticamente todos os endpoints da API e imprime OK ou FALHOU para
 cbtu/
 ├── main.py                    # ponto de entrada do backend
 ├── database.py                # configuração do banco de dados (SQLite)
-├── requirements.txt           # lista de dependências Python
-├── test_api.py                # script de testes da API
+├── frontend/requirements.txt  # dependências Python
+├── tests/                     # testes automatizados da API e do compilador
+│
+├── Line Planner/              # frontend React (interface principal)
+│   ├── src/
+│   └── package.json
+│
+├── compiler/
+│   ├── line_map.py            # tradução linha nomeada → vértices 2N / cost matrix
+│   └── visual.py              # modelo visual do Line Planner → InstanceParams
 │
 ├── solver/
 │   └── solver.py              # algoritmo do solver (isolado do restante)
@@ -214,10 +237,10 @@ cbtu/
 │   ├── instances.py           # endpoints de instâncias
 │   └── solutions.py           # endpoints de soluções
 │
-└── frontend/
-    ├── app.py                 # página principal da interface
-    ├── api.py                 # chamadas ao backend
-    └── components.py          # seções do formulário e visualização
+└── frontend/                  # frontend legado (Streamlit)
+    ├── app.py
+    ├── api.py
+    └── components.py
 ```
 
 ---
@@ -232,11 +255,13 @@ A documentação interativa fica disponível em: **http://localhost:8000/docs** 
 
 | Método | Rota | O que faz |
 |--------|------|-----------|
-| `POST` | `/instances/` | Cria uma instância |
-| `GET` | `/instances/` | Lista todas as instâncias |
+| `POST` | `/instances/` | Cria uma instância (`params` compilados **ou** `line` visual) |
+| `GET` | `/instances/` | Lista todas as instâncias (inclui `line` e `last_run`) |
 | `GET` | `/instances/{id}` | Retorna uma instância pelo ID |
 | `PUT` | `/instances/{id}` | Atualiza uma instância existente |
-| `POST` | `/instances/{id}/run` | Executa o solver para esta instância |
+| `DELETE` | `/instances/{id}` | Exclui uma instância e suas soluções |
+| `GET` | `/instances/{id}/solutions` | Lista as soluções desta instância |
+| `POST` | `/instances/{id}/run` | Compila o modelo visual (se houver) e executa o solver |
 
 ### Soluções
 
@@ -271,18 +296,36 @@ python -c "from solver.solver import solve; print(solve({'num_trains': 2, ...}))
 
 ## Problemas comuns
 
-**"Connection refused" ao rodar o frontend**
-O backend não está rodando. Certifique-se de que o Terminal 1 com `uvicorn` está ativo.
+**`styleText` / `EBADENGINE` / Node v18 ao rodar o frontend**
+O Vite 8 precisa de Node 20.19+. Este computador tem o Node 22 no nvm, mas o terminal pode estar no Node 18 do sistema. Na pasta `Line Planner/`:
+
+```bash
+source ~/.nvm/nvm.sh
+nvm use
+node -v    # deve mostrar v22.x
+npm run dev
+```
+
+**`Cannot find native binding` do Rolldown**
+O `npm install` foi feito no Node 18 e pulou o binário nativo. Com o Node 22 ativo:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+**"Connection refused" ou erro de rede no frontend**
+O backend não está rodando. Certifique-se de que o Terminal 1 com `uvicorn` está ativo e que `VITE_API_URL` aponta para ele.
+
+**Erro de CORS no navegador**
+Inclua a origem do frontend em `CORS_ORIGINS` ao iniciar o backend (veja seção "Como rodar o sistema").
 
 **"Module not found"**
 O ambiente virtual não está ativado. Execute `source .venv/bin/activate` (Linux/Mac) ou `.venv\Scripts\activate` (Windows).
 
-**Campos do formulário não aparecem**
-Preencha primeiro os campos base: número de trens, número de pontos e número de intervalos.
+**Erro 400 ao executar o solver**
+O modelo visual ainda está incompleto (faltam pontos, rotas, depósitos, cruzamentos ou demanda). A mensagem da API descreve o que falta.
 
-**Erro 422 ao salvar**
-Algum campo obrigatório está vazio ou com tipo errado. Verifique se todos os campos foram preenchidos corretamente.
-
-## Ideia de melhoria
-
-Em vez de uma matriz, ser um campo onde a pessoa vai adicionando ligacoes (ja q é uma matriz esparsa)
+**Erro 422 ao salvar via API com `params`**
+Algum campo obrigatório do payload compilado está vazio ou com tipo errado.
