@@ -62,7 +62,8 @@ export function LineCanvas({
     <div className="overflow-x-auto">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-auto w-full select-none"
+        className="mx-auto h-auto max-w-full select-none"
+        style={{ width }}
         role="img"
         aria-label={`${instance.lineName} schematic`}
       >

@@ -44,12 +44,37 @@ export function RouteEditor({ instance, onChange }: Props) {
   const isDepot = (id: string) =>
     instance.stations.find((s) => s.id === id)?.roles.includes("depot") ?? false;
 
+  const areLinked = (a: string, b: string) => {
+    const ia = idxOf(a);
+    const ib = idxOf(b);
+    return ia >= 0 && ib >= 0 && Math.abs(ia - ib) === 1;
+  };
+
+  const sequenceLinked = (sequence: string[]) => {
+    for (let i = 1; i < sequence.length; i++) {
+      if (!areLinked(sequence[i - 1]!, sequence[i]!)) return false;
+    }
+    return true;
+  };
+
+  const canRemoveStop = (index: number) => {
+    if (!active) return false;
+    return sequenceLinked(active.sequence.filter((_, j) => j !== index));
+  };
+
   const validation = (() => {
     if (!active || active.sequence.length < 2) return "Adicione ao menos dois pontos.";
     const first = active.sequence[0]!;
     const last = active.sequence[active.sequence.length - 1]!;
     if (!isDepot(first)) return `A rota deve começar em um depósito — ${name(first)} não é depósito.`;
     if (!isDepot(last)) return `A rota deve terminar em um depósito — ${name(last)} não é depósito.`;
+    for (let i = 1; i < active.sequence.length; i++) {
+      const prev = active.sequence[i - 1]!;
+      const cur = active.sequence[i]!;
+      if (!areLinked(prev, cur)) {
+        return `Não há trecho entre ${name(prev)} e ${name(cur)} — a rota só pode seguir pontos vizinhos.`;
+      }
+    }
     for (let i = 1; i < active.sequence.length - 1; i++) {
       const prev = idxOf(active.sequence[i - 1]!);
       const cur = idxOf(active.sequence[i]!);
@@ -210,25 +235,37 @@ export function RouteEditor({ instance, onChange }: Props) {
               {active.sequence.length === 0 && (
                 <span className="text-sm text-muted-foreground">Nenhuma parada ainda.</span>
               )}
-              {active.sequence.map((id, i) => (
-                <span key={`${id}-${i}`} className="flex items-center gap-1.5">
-                  <span className="flex items-center gap-1 rounded-full border border-border bg-surface py-1 pl-3 pr-1.5 text-sm font-medium">
-                    {name(id)}
-                    <button
-                      className="rounded-full p-0.5 text-muted-foreground hover:bg-accent"
-                      onClick={() =>
-                        update({ sequence: active.sequence.filter((_, j) => j !== i) })
-                      }
-                      aria-label={`Remover ${name(id)}`}
-                    >
-                      <X className="size-3" />
-                    </button>
+              {active.sequence.map((id, i) => {
+                const removable = canRemoveStop(i);
+                return (
+                  <span key={`${id}-${i}`} className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 rounded-full border border-border bg-surface py-1 pl-3 pr-1.5 text-sm font-medium">
+                      {name(id)}
+                      <button
+                        className={cn(
+                          "rounded-full p-0.5 text-muted-foreground",
+                          removable ? "hover:bg-accent" : "cursor-not-allowed opacity-30",
+                        )}
+                        disabled={!removable}
+                        title={
+                          removable
+                            ? `Remover ${name(id)}`
+                            : "Não dá para remover: os pontos vizinhos não se ligam"
+                        }
+                        onClick={() =>
+                          update({ sequence: active.sequence.filter((_, j) => j !== i) })
+                        }
+                        aria-label={`Remover ${name(id)}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </span>
+                    {i < active.sequence.length - 1 && (
+                      <span className="text-muted-foreground">→</span>
+                    )}
                   </span>
-                  {i < active.sequence.length - 1 && (
-                    <span className="text-muted-foreground">→</span>
-                  )}
-                </span>
-              ))}
+                );
+              })}
             </div>
           </div>
 
