@@ -1,29 +1,32 @@
-# Welcome to your Lovable project
+# Line Planner
 
-This project was built with [Lovable](https://lovable.dev).
+Frontend do CBTU Solver (estúdio visual da linha, rotas, frota e resultados).
 
-## Build with Lovable
+## Node.js 22
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Este app **não roda no Node 18**. É preciso **Node 22** (mínimo 20.19). O arquivo `.nvmrc` nesta pasta fixa a versão `22`.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+```bash
+nvm install 22          # só na primeira vez
+nvm use                 # ativa o Node 22 (lê o .nvmrc)
+node -v                 # deve mostrar v22.x
+```
 
-## Development
+Se o `nvm` não existir neste terminal: `source ~/.nvm/nvm.sh && nvm use 22`.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Instale as dependências **já com o Node 22**. Um `npm install` no Node 18 quebra o Vite/Rolldown depois.
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+## Desenvolvimento
+
+Na raiz do repositório, o backend precisa estar no ar (`uvicorn main:app --reload`, porta 8000).
+
+```bash
+nvm use
+npm install
+cp .env.example .env    # VITE_API_URL=http://localhost:8000
 npm run dev
 ```
 
-## Built with
+Abre em **http://localhost:8080/**.
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+Instruções completas (Python, API, testes e problemas comuns) estão no [README da raiz](../README.md).

@@ -1,331 +1,218 @@
-# CBTU Solver — Guia Completo
+# CBTU Solver
 
-Este documento explica como instalar, rodar e usar o sistema CBTU Solver — tanto para quem vai desenvolver quanto para quem só quer usar a interface.
+Sistema de planejamento de horários ferroviários: você desenha a linha no navegador, o backend compila os dados e o solver calcula a grade de cada trem.
 
----
+- **Backend (API)** — Python / FastAPI em `http://localhost:8000`
+- **Frontend** — React (Line Planner) em `http://localhost:8080`
 
-## O que é este sistema?
-
-O CBTU Solver é uma aplicação web que permite:
-
-1. **Criar instâncias** — conjuntos de dados de entrada que descrevem um problema de escalonamento de trens
-2. **Executar o solver** — um algoritmo que recebe esses dados e calcula a melhor solução
-3. **Ver os resultados** — as rotas e horários gerados para cada trem
-
-A aplicação tem duas partes:
-- **Backend (API)**: recebe os dados, salva no banco, **compila** o modelo visual da linha e executa o solver
-- **Frontend (interface visual)**: estúdio React em `Line Planner/` para desenhar a linha, rotas, frota e demanda
+Os dois precisam estar rodando ao mesmo tempo.
 
 ---
 
 ## Pré-requisitos
 
-- **Python 3.12 ou superior** instalado na máquina
-- **Node.js 20.19+** (Vite 8). Se o `node -v` mostrar v18, use o nvm: `nvm use` dentro de `Line Planner/`
-- Acesso ao terminal (Prompt de Comando no Windows, Terminal no Linux/Mac)
+| Ferramenta | Versão | Como conferir |
+|------------|--------|----------------|
+| Python | 3.12 ou superior | `python3 --version` |
+| Node.js | **22** (mínimo 20.19) | `node -v` |
+| npm | vem com o Node | `npm -v` |
 
-Para verificar se o Python está instalado:
+### Node.js — versão obrigatória
+
+O frontend usa **Vite 8**, que **não roda no Node 18**. Se `node -v` mostrar `v18.x`, o `npm run dev` quebra (`styleText` / `Cannot find native binding`).
+
+Este repositório trava a versão em `Line Planner/.nvmrc` (**22**). Use o [nvm](https://github.com/nvm-sh/nvm):
 
 ```bash
-python3 --version
+# instalar o Node 22 (só na primeira vez)
+nvm install 22
+
+# em todo terminal, antes de npm install / npm run dev:
+cd "Line Planner"
+nvm use          # lê o .nvmrc e ativa o Node 22
+node -v          # precisa mostrar v22.x
 ```
 
-Se aparecer algo como `Python 3.12.x`, está ok.
+Se o `nvm` não for encontrado neste terminal:
+
+```bash
+source ~/.nvm/nvm.sh
+nvm use 22
+```
+
+**Instale as dependências do frontend já com o Node 22 ativo.** Um `npm install` feito no Node 18 pula o binário nativo do Rolldown e o servidor não sobe.
 
 ---
 
-## Instalação
+## Instalação (primeira vez)
 
-### 1. Abra o terminal na pasta do projeto
-
-```bash
-cd /caminho/para/cbtu
-```
-
-### 2. Crie um ambiente virtual (faz o Python usar as dependências apenas deste projeto)
+Na raiz do repositório (`cbtu/`):
 
 ```bash
 python3 -m venv .venv
-```
-
-### 3. Ative o ambiente virtual
-
-**Linux / Mac:**
-```bash
-source .venv/bin/activate
-```
-
-**Windows:**
-```bash
-.venv\Scripts\activate
-```
-
-Você saberá que funcionou quando aparecer `(.venv)` no início da linha do terminal.
-
-### 4. Instale as dependências
-
-```bash
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r frontend/requirements.txt
 ```
 
-Isso pode demorar alguns minutos na primeira vez.
-
----
-
-## Como rodar o sistema
-
-O sistema precisa de **dois terminais abertos ao mesmo tempo** — um para o backend e outro para o frontend.
-
-### Terminal 1 — Backend (API)
-
-```bash
-uvicorn main:app --reload
-```
-
-Você verá algo como:
-
-```
-INFO: Uvicorn running on http://127.0.0.1:8000
-INFO: Application startup complete.
-```
-
-Isso significa que o backend está rodando. **Mantenha este terminal aberto.**
-
-### Terminal 2 — Frontend React (interface principal)
-
-Na primeira vez, instale as dependências do frontend:
-
-```bash
-cd "Line Planner"
-nvm use          # Node 22 — o Vite 8 não roda no Node 18 do sistema
-npm install
-cp .env.example .env   # opcional; padrão aponta para http://localhost:8000
-```
-
-Depois, em qualquer sessão:
+Frontend:
 
 ```bash
 cd "Line Planner"
 nvm use
-npm run dev
+npm install
+cp .env.example .env               # opcional; padrão: http://localhost:8000
 ```
 
-Abra a URL que o Vite imprimir (em geral **http://localhost:8080** ou **http://localhost:3000**).
-
-Variável opcional em `Line Planner/.env`:
+O `.env` pode conter:
 
 ```
 VITE_API_URL=http://localhost:8000
 ```
 
-O backend aceita requisições do frontend via CORS. Por padrão as origens `http://localhost:5173`, `http://localhost:8080` e `http://localhost:3000` estão liberadas. Para outras origens (produção), defina `CORS_ORIGINS` ao subir o uvicorn, por exemplo:
+---
+
+## Como rodar
+
+Abra **dois terminais**.
+
+### 1 — Backend
+
+```bash
+cd /caminho/para/cbtu
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+uvicorn main:app --reload
+```
+
+Quando estiver ok:
+
+```
+INFO: Uvicorn running on http://127.0.0.1:8000
+```
+
+Documentação interativa da API: http://localhost:8000/docs
+
+### 2 — Frontend
+
+```bash
+cd /caminho/para/cbtu/"Line Planner"
+nvm use                            # Node 22
+npm run dev
+```
+
+Abra **http://localhost:8080/**.
+
+O backend libera CORS para `localhost:8080`, `localhost:3000` e `localhost:5173`. Em outra origem:
 
 ```bash
 CORS_ORIGINS=http://localhost:8080,https://seu-dominio.com uvicorn main:app --reload
 ```
 
-### Frontend legado (Streamlit)
-
-A interface antiga em Streamlit ainda está disponível, mas **não é mais a interface recomendada**:
-
-```bash
-source .venv/bin/activate   # Linux/Mac
-streamlit run frontend/app.py
-```
-
-Abre em `http://localhost:8501`.
-
 ---
 
 ## Como usar a interface
 
-### Passo 1 — Crie ou abra um cenário
-
-Na tela inicial, use **Novo cenário** (ou **Carregar exemplo** para o Metrô Recife). Cada cartão é um cenário salvo no backend.
-
-### Passo 2 — Modele a linha
-
-No editor, a aba **1 · Linha** deixa você:
-
-- adicionar pontos, nomes, funções (estação, cruzamento, depósito) e tempos de parada
-- informar a distância de cada trecho
-- escolher o depósito inicial e o horizonte do dia (início e fim)
-
-### Passo 3 — Defina rotas
-
-Em **2 · Rotas**, monte a sequência de pontos de cada padrão de serviço. A rota precisa começar e terminar em depósito; inversão de sentido só em cruzamento.
-
-### Passo 4 — Frota e demanda
-
-Em **3 · Frota e demanda**:
-
-- cadastre os trens e o máximo de viagens de cada um
-- desenhe os períodos de demanda no dia
-- preencha quantos trens devem partir de cada ponto/sentido em cada período
-- ajuste o espaçamento mínimo (**alpha**) entre partidas
-
-### Passo 5 — Execute o solver
-
-O cenário é salvo automaticamente no backend. Em **4 · Executar**, clique em **Executar solver**. O backend:
-
-1. Compila o modelo visual para a matriz 2N, rotas em vértices e demandas por intervalo (`compiler/`)
-2. Normaliza os horários para o horizonte começar em 0s
-3. Roda o solver e devolve a grade de horários
-
-### Passo 6 — Veja os resultados
-
-A aba **Resultados** mostra valor objetivo, tempo de execução, linhas de tempo por trem e o diagrama espaço-tempo. Os horários voltam para o relógio do dia (não o tempo relativo do solver).
+1. **Cenários** — crie um novo ou carregue o exemplo do Metrô Recife.
+2. **1 · Linha** — pontos, funções (estação / cruzamento / depósito), distâncias, depósito inicial e horizonte do dia.
+3. **2 · Rotas** — sequência de pontos (começa e termina em depósito; inversão só em cruzamento). Clique para adicionar: trechos não vizinhos são preenchidos automaticamente; não dá para remover um ponto do meio e deixar um pulo (ex.: 1 → 3).
+4. **3 · Frota e demanda** — trens, períodos do dia, demanda por ponto/sentido e espaçamento mínimo (alpha).
+5. **4 · Executar** — o cenário é salvo no backend, compilado para o formato do solver e processado. A aba Resultados mostra horários, linhas de tempo e o diagrama espaço-tempo.
 
 ---
 
-## Executar os testes
+## Testes
 
-**Compilador** (sem servidor):
+Na raiz, com o ambiente virtual ativo:
 
 ```bash
 python3 tests/test_line_map.py
 python3 tests/test_visual_compile.py
 ```
 
-**Backend** (com o servidor rodando):
+Com o backend no ar:
 
 ```bash
-pytest tests/
-# ou
 python3 tests/test_api.py
+# ou: pytest tests/
 ```
 
-**Build de produção do frontend:**
+Build do frontend (também exige Node 22):
 
 ```bash
 cd "Line Planner"
+nvm use
 npm run build
 ```
 
-Sirva a pasta gerada pelo Vite (`.output` / `dist`) com nginx ou outro servidor; configure `VITE_API_URL` para a URL pública da API no momento do build.
-
 ---
 
-## Estrutura do projeto
+## Estrutura
 
 ```
 cbtu/
-├── main.py                    # ponto de entrada do backend
-├── database.py                # configuração do banco de dados (SQLite)
-├── frontend/requirements.txt  # dependências Python
-├── tests/                     # testes automatizados da API e do compilador
-│
-├── Line Planner/              # frontend React (interface principal)
-│   ├── src/
-│   └── package.json
-│
-├── compiler/
-│   ├── line_map.py            # tradução linha nomeada → vértices 2N / cost matrix
-│   └── visual.py              # modelo visual do Line Planner → InstanceParams
-│
-├── solver/
-│   └── solver.py              # algoritmo do solver (isolado do restante)
-│
-├── models/
-│   ├── instance.py            # estrutura dos dados de uma instância
-│   └── solution.py            # estrutura dos dados de uma solução
-│
-├── services/
-│   └── solver_service.py      # conecta a API ao solver
-│
-├── routers/
-│   ├── instances.py           # endpoints de instâncias
-│   └── solutions.py           # endpoints de soluções
-│
-└── frontend/                  # frontend legado (Streamlit)
-    ├── app.py
-    ├── api.py
-    └── components.py
+├── main.py                      # API FastAPI
+├── compiler/                    # modelo visual → params do solver
+├── solver/                      # algoritmo
+├── models/  routers/  services/
+├── Line Planner/                # frontend (Node 22)
+│   ├── .nvmrc                   # 22
+│   └── .env.example
+├── frontend/                    # Streamlit legado
+└── tests/
 ```
 
----
+### Frontend legado (Streamlit)
 
-## Endpoints da API
-
-A API também pode ser usada diretamente (sem a interface visual), por exemplo via terminal ou outro programa.
-
-A documentação interativa fica disponível em: **http://localhost:8000/docs** (com o backend rodando)
-
-### Instâncias
-
-| Método | Rota | O que faz |
-|--------|------|-----------|
-| `POST` | `/instances/` | Cria uma instância (`params` compilados **ou** `line` visual) |
-| `GET` | `/instances/` | Lista todas as instâncias (inclui `line` e `last_run`) |
-| `GET` | `/instances/{id}` | Retorna uma instância pelo ID |
-| `PUT` | `/instances/{id}` | Atualiza uma instância existente |
-| `DELETE` | `/instances/{id}` | Exclui uma instância e suas soluções |
-| `GET` | `/instances/{id}/solutions` | Lista as soluções desta instância |
-| `POST` | `/instances/{id}/run` | Compila o modelo visual (se houver) e executa o solver |
-
-### Soluções
-
-| Método | Rota | O que faz |
-|--------|------|-----------|
-| `GET` | `/solutions/` | Lista todas as soluções |
-| `GET` | `/solutions/{id}` | Retorna uma solução pelo ID |
-
----
-
-## Integrar o solver real
-
-O solver está isolado em `solver/solver.py`. Para substituir o placeholder pelo algoritmo real, edite apenas a função `solve`:
-
-```python
-def solve(params: dict) -> dict:
-    # implemente o algoritmo aqui
-    return {
-        "total_time": ...,       # tempo de execução em segundos
-        "solution_value": ...,   # valor da função objetivo
-        "trains": [...]          # lista de trens com viagens e paradas
-    }
-```
-
-O solver não tem nenhuma dependência da API ou do banco de dados — pode ser desenvolvido e testado de forma completamente independente:
+Não é a interface recomendada:
 
 ```bash
-python -c "from solver.solver import solve; print(solve({'num_trains': 2, ...}))"
+source .venv/bin/activate
+streamlit run frontend/app.py      # http://localhost:8501
 ```
+
+---
+
+## API
+
+| Método | Rota | O que faz |
+|--------|------|-----------|
+| `POST` | `/instances/` | Cria instância (`params` compilados **ou** `line` visual) |
+| `GET` | `/instances/` | Lista (inclui `line` e `last_run`) |
+| `GET` | `/instances/{id}` | Busca por ID |
+| `PUT` | `/instances/{id}` | Atualiza |
+| `DELETE` | `/instances/{id}` | Exclui instância e soluções |
+| `GET` | `/instances/{id}/solutions` | Soluções desta instância |
+| `POST` | `/instances/{id}/run` | Compila (se houver `line`) e executa o solver |
+| `GET` | `/solutions/` | Lista soluções |
+| `GET` | `/solutions/{id}` | Busca solução |
+
+O solver em `solver/solver.py` não depende da API. A função `solve(params) -> dict` devolve `total_time`, `solution_value` e `trains`.
 
 ---
 
 ## Problemas comuns
 
-**`styleText` / `EBADENGINE` / Node v18 ao rodar o frontend**
-O Vite 8 precisa de Node 20.19+. Este computador tem o Node 22 no nvm, mas o terminal pode estar no Node 18 do sistema. Na pasta `Line Planner/`:
+**`node -v` mostra v18 / erro `styleText` / `EBADENGINE`**  
+O terminal está no Node do sistema. `source ~/.nvm/nvm.sh && cd "Line Planner" && nvm use && node -v` — tem de ser v22.
+
+**`Cannot find native binding` (Rolldown)**  
+O `npm install` foi feito no Node 18. Com o 22 ativo:
 
 ```bash
-source ~/.nvm/nvm.sh
+cd "Line Planner"
 nvm use
-node -v    # deve mostrar v22.x
-npm run dev
-```
-
-**`Cannot find native binding` do Rolldown**
-O `npm install` foi feito no Node 18 e pulou o binário nativo. Com o Node 22 ativo:
-
-```bash
 rm -rf node_modules package-lock.json
 npm install
 npm run dev
 ```
 
-**"Connection refused" ou erro de rede no frontend**
-O backend não está rodando. Certifique-se de que o Terminal 1 com `uvicorn` está ativo e que `VITE_API_URL` aponta para ele.
+**Connection refused no navegador**  
+O backend não está no ar, ou `VITE_API_URL` não aponta para `http://localhost:8000`.
 
-**Erro de CORS no navegador**
-Inclua a origem do frontend em `CORS_ORIGINS` ao iniciar o backend (veja seção "Como rodar o sistema").
+**Erro de CORS**  
+Inclua a origem do front em `CORS_ORIGINS` ao subir o uvicorn.
 
-**"Module not found"**
-O ambiente virtual não está ativado. Execute `source .venv/bin/activate` (Linux/Mac) ou `.venv\Scripts\activate` (Windows).
+**Module not found (Python)**  
+Ative o venv: `source .venv/bin/activate`.
 
-**Erro 400 ao executar o solver**
-O modelo visual ainda está incompleto (faltam pontos, rotas, depósitos, cruzamentos ou demanda). A mensagem da API descreve o que falta.
-
-**Erro 422 ao salvar via API com `params`**
-Algum campo obrigatório do payload compilado está vazio ou com tipo errado.
+**Erro 400 ao executar o solver**  
+Linha incompleta (pontos, rotas, depósitos, cruzamentos ou demanda). A mensagem da API diz o que falta.
