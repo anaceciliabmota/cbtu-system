@@ -1,76 +1,60 @@
-import copy
-
 class Data:
     def __init__(self, instance_path=None):
         # instance name and set attributes (path omitted when loading from API dict)
-        self.instance_path = instance_path
-        self.instance_name = None
-        self.instance_set = None
+        self.instance_path = instance_path   # path of the instance file
+        self.instance_name = None            # name of the instance (file name without the extension)
+        self.instance_set = None             # set of the instance (name of the parent folder)
 
-        # number of trains
-        self.nb_trains = None
-        # maximum number of trips per train
-        self.max_trips_per_train = None
-        # maximum number of trips a train can complete
-        self.max_nb_trips = None
+        self.nb_trains = None                # number of trains
+        self.max_trips_per_train = None      # maximum number of trips per train
+        self.max_nb_trips = None             # maximum number of trips a train can complete
 
-        # number of points
-        self.nb_points = None
-        self.initial_point = None # initial point for all trains
+        self.nb_points = None                # number of points
+        self.initial_point = None            # initial point for all trains
+
         # types of points
-        self.is_station = None
-        self.is_crossing = None
-        self.is_depot = None
+        self.is_station = None               # tells if each point is a station
+        self.is_crossing = None              # tells if each point is a crossing
+        self.is_depot = None                 # tells if each point is a depot
 
         # data referring to the network of the train line (vertices and arcs)
-        self.upper_vertices = None
-        self.lower_vertices = None
-        self.point_to_vertices = None
-        self.vertex_to_point = None
-        self.arcs = None
-        self.vertex_out_arcs = None
-        self.vertex_inc_arcs = None
+        self.upper_vertices = None           # vertices of the upper section
+        self.lower_vertices = None           # vertices of the lower section
+        self.point_to_vertices = None        # (upper, lower) vertices of each point
+        self.vertex_to_point = None          # point of each vertex
+        self.arcs = None                     # arcs of the network
+        self.vertex_out_arcs = None          # outcoming arcs of each vertex
+        self.vertex_inc_arcs = None          # incoming arcs of each vertex
 
-        # set of possible collisions (incompatible points)
-        self.inc_points = None
+        self.inc_points = None               # triples (k, q, v) of vertices where a collision can occur
 
-        # number of routes
-        self.nb_routes = None
-        # routes arcs and vertices
-        self.route_arcs = None
-        self.route_vertices = None
+        # data referring to the routes
+        self.nb_routes = None                # number of routes
+        self.route_arcs = None               # arcs of each route
+        self.route_vertices = None           # vertices of each route
 
-        # time intervals
-        self.time_intervals = None
-        # demands of each vertex by time intervals
-        self.demands = None
-        # sum of all demands that must be followd on a day for each vertex
-        self.demand_per_day = None
+        self.time_intervals = None           # time intervals
+        self.demands = None                  # demands of each vertex by time intervals
+        self.demand_per_day = None           # sum of all demands that must be followd on a day for each vertex
 
-        # distance values
-        self.distance = None
-        # distance and min service values
-        self.distance_and_service_min = None
-        # distance and max service values
-        self.distance_and_service_max = None
+        self.distance = None                 # distance values
+        self.distance_and_service_min = None # distance and min service values
+        self.distance_and_service_max = None # distance and max service values
 
-        # maximum time for all of the trips to end
-        self.max_time = None
-        # alpha - headway time
-        self.alpha = None
+        self.max_time = None                 # maximum time for all of the trips to end
+        self.alpha = None                    # minimum headway
 
-    # getters
     def get_nb_vertices(self):
         return self.nb_points * 2
     def get_nb_intervals(self):
         return len(self.time_intervals)
 
-    # =====================================================================
-    #            Util methods to get relevant information
-    # =====================================================================
+    # ==================================================================
+    #            util methods to get relevant information
+    # ==================================================================
     def is_reversal_arc(self, arc):
         return abs(arc["out"] - arc["inc"]) == self.nb_points
-    
+
     def can_be_adjacent_in_consecutive_trips(self, v1, v2):
         nb_routes_ending_at_v1 = 0
         nb_routes_starting_at_v2 = 0
@@ -80,17 +64,17 @@ class Data:
             if self.start_at_vertex(route_idx, v2):
                 nb_routes_starting_at_v2 += 1
         return nb_routes_ending_at_v1 > 0 and nb_routes_starting_at_v2 > 0 and self.vertex_to_point[v1] == self.vertex_to_point[v2]
-    
+
     def start_at_vertex(self, route_idx, vertex):
         return self.route_vertices[route_idx][0] == vertex
     def finish_at_vertex(self, route_idx, vertex):
         return self.route_vertices[route_idx][-1] == vertex
-    
+
     def are_incompatible_routes(self, route_idx1, route_idx2):
         route1_last_vertex = self.route_vertices[route_idx1][-1]
         route2_first_vertex = self.route_vertices[route_idx2][0]
         return self.vertex_to_point[route1_last_vertex] != self.vertex_to_point[route2_first_vertex]
-    
+
     def is_cyclic_route(self, route_idx):
         return self.vertex_to_point[self.route_vertices[route_idx][0]] == self.vertex_to_point[self.route_vertices[route_idx][-1]]
     def is_valid_route(self, train_idx, trip_idx, route_idx):
@@ -102,15 +86,15 @@ class Data:
             if arc["idx"] == arc_idx:
                 return True
         return False
-    
+
     def get_vertex_out_arcs(self, vertex):
         return self.vertex_out_arcs[vertex]
     def get_vertex_inc_arcs(self, vertex):
         return self.vertex_inc_arcs[vertex]
-    
-    # =====================================================================
-    #            Methods to store data from arcs and inc points
-    # =====================================================================
+
+    # ====================================================================
+    #            methods to store data from arcs and inc points
+    # ====================================================================
     def assign_arcs(self):
         self.arcs = []
         self.route_arcs = []
@@ -178,7 +162,7 @@ class Data:
         # for each upper vertex that is a crossing
         for i in range(self.nb_points - 1):
             if self.is_crossing[self.vertex_to_point[i]]:
-                
+
                 # find the next crossing in the lower section
                 next_crossing = -1
                 for j in range(i + self.nb_points + 1, 2 * self.nb_points):
@@ -192,14 +176,6 @@ class Data:
                 k = i
                 v = next_crossing
                 q = next_crossing - self.nb_points # - 1
-                # a = None
-                # for arc in self.arcs:
-                #     # find arc a = (q, q + 1)
-                #     if arc["out"] == q and arc["inc"] == q + 1:
-                #         a = arc
-                #         break
-
-                # self.inc_points.append((k, q, v, a))
                 self.inc_points.append((k, q, v))
 
 
@@ -207,23 +183,14 @@ class Data:
                 k = next_crossing
                 v = i
                 q = i + self.nb_points # + 1
-                # a = None
-                # for arc in self.arcs:
-                #     # find arc a = (q, q - 1)
-                #     if arc["out"] == q and arc["inc"] == q - 1:
-                #         a = arc
-                #         break
-
-                # self.inc_points.append((k, q, v, a))
                 self.inc_points.append((k, q, v))
-    
-    # =====================================================================
-    #            Methods to read and display data from the instance
-    # =====================================================================
 
+    # =====================================================================
+    #            methods to read and display data from the instance
+    # =====================================================================
     def read_data_from_dict(self, data: dict):
 
-        #storing number of trains
+        # storing number of trains
         self.nb_trains = data["num_trains"]
 
         # storing max number of trips per train and getting overall maximum number of trips
@@ -231,10 +198,11 @@ class Data:
         self.max_nb_trips = max(self.max_trips_per_train)
 
         # storing time intervals
-        self.time_intervals = data["time_intervals"]
+        self.time_intervals = [tuple(interval) for interval in data["time_intervals"]]
 
         # storing number of points
         self.nb_points = int(data["num_points"] if "num_points" in data else data["nb_points"])
+
         # assign upper_vertex_set and lower_vertex_set
         self.upper_vertices = []
         self.lower_vertices = []
@@ -250,21 +218,18 @@ class Data:
             self.point_to_vertices[i - self.nb_points][1] = i
 
         # storing stations
-        stations = data["stations"]
         self.is_station = [False] * self.nb_points
-        for station in stations:
+        for station in data["stations"]:
             self.is_station[station] = True
 
         # storing crossings
-        crossings = data["crossings"]
         self.is_crossing = [False] * self.nb_points
-        for crossing in crossings:
+        for crossing in data["crossings"]:
             self.is_crossing[crossing] = True
 
         # storing depots
-        depots = data["depots"]
         self.is_depot = [False] * self.nb_points
-        for depot in depots:
+        for depot in data["depots"]:
             self.is_depot[depot] = True
 
         # storing initial point
@@ -272,7 +237,7 @@ class Data:
 
         # storing routes
         self.nb_routes = len(data["routes"])
-        self.route_vertices = [row for row in data["routes"] if row != -1]
+        self.route_vertices = [[v for v in row if v != -1] for row in data["routes"]]
         self.assign_arcs()
 
         # storing service time min and max
@@ -281,11 +246,12 @@ class Data:
 
         # storing cost matrix
         distance_matrix = data["cost_matrix"]
+
         # create map of (out, inc) -> arc index
         arc_index_map = {}
         for arc in self.arcs:
             arc_index_map[(arc["out"], arc["inc"])] = arc["idx"]
-        
+
         # convert matrices to lists indexed by arc
         # initialize lists with -1 (invalid arc)
         nb_vertices = self.get_nb_vertices()
@@ -299,7 +265,7 @@ class Data:
                     arc_idx = arc_index_map[(i, j)]
                     dist = distance_matrix[i][j]
                     self.distance[arc_idx] = dist
-                    
+
                     # distance and service min
                     if dist != -1 and dist != 0:
                         self.distance_and_service_min[arc_idx] = dist + aux_min[self.vertex_to_point[j]]
@@ -312,7 +278,8 @@ class Data:
                         self.distance_and_service_max[arc_idx] = dist
 
         # storing demands
-        self.demands =  data["demands"]
+        self.demands = data["demands"]
+
         # calculate demand per day for each vertex
         self.demand_per_day = [0] * nb_vertices
         for i in range(nb_vertices):
@@ -354,19 +321,19 @@ class Data:
             if next_line:
                 file.seek(pos)
 
-        # --- nb_trains ---
+        # reading nb_trains
         print("   > Reading number of trains...")
         skip_hash_line()
         self.nb_trains = int(file.readline().strip())
 
-        # --- max_trips_per_train ---
+        # reading max_trips_per_train
         print("   > Reading maximum number of trips per train...")
         skip_hash_line()
         line = file.readline()
         self.max_trips_per_train = list(map(int, line.split()))
         self.max_nb_trips = max(self.max_trips_per_train)
 
-        # --- time_intervals ---
+        # reading time_intervals
         print("   > Reading time intervals...")
         skip_hash_line()
         line = file.readline()
@@ -375,10 +342,10 @@ class Data:
         self.time_intervals = []
         for _ in range(nb_intervals):
             line = file.readline()
-            a, b = map(int, line.split())
+            a, b = map(float, line.split())
             self.time_intervals.append((a, b))
 
-        # --- nb_points ---
+        # reading nb_points
         print("   > Reading number of points...")
         skip_hash_line()
         self.nb_points = int(file.readline().strip())
@@ -397,7 +364,7 @@ class Data:
             self.vertex_to_point.append(i - self.nb_points)
             self.point_to_vertices[i - self.nb_points][1] = i
 
-        # --- stations ---
+        # reading stations
         print("   > Reading stations...")
         skip_hash_line()
         skip_hash_line()
@@ -407,7 +374,7 @@ class Data:
         for station in stations:
             self.is_station[station] = True
 
-        # --- crossings ---
+        # reading crossings
         print("   > Reading crossings...")
         skip_hash_line()
         skip_hash_line()
@@ -417,7 +384,7 @@ class Data:
         for crossing in crossings:
             self.is_crossing[crossing] = True
 
-        # --- depots ---
+        # reading depots
         print("   > Reading depots...")
         skip_hash_line()
         skip_hash_line()
@@ -427,12 +394,12 @@ class Data:
         for depot in depots:
             self.is_depot[depot] = True
 
-        # --- initial point ---
+        # reading initial point
         print("   > Reading initial point...")
         skip_hash_line()
         self.initial_point = int(file.readline().strip())
 
-        # --- Rotas ---
+        # reading routes
         print("   > Reading routes...")
         skip_hash_line()
         self.nb_routes = int(file.readline().strip())
@@ -445,28 +412,28 @@ class Data:
             self.route_vertices.append(row)
         self.assign_arcs()
 
-        # --- service time min ---
+        # reading service time min
         print("   > Reading distance and service...")
         skip_hash_line()
-        aux_min = list(map(int, file.readline().split()))
-        # --- service time max ---
+        aux_min = list(map(float, file.readline().split()))
+        # reading service time max
         skip_hash_line()
-        aux_max = list(map(int, file.readline().split()))
+        aux_max = list(map(float, file.readline().split()))
 
-        # --- cost matrix ---
+        # reading cost matrix
         skip_hash_line() # "#cost_matrix"
         file.readline()  # skip header line with indices
         # read matrix
         distance_matrix = []
         for _ in range(nb_vertices):
-            vals = list(map(int, file.readline().split()))
+            vals = list(map(float, file.readline().split()))
             distance_matrix.append(vals[1:])  # remove index of line
-        
+
         # create map of (out, inc) -> arc index
         arc_index_map = {}
         for arc in self.arcs:
             arc_index_map[(arc["out"], arc["inc"])] = arc["idx"]
-        
+
         # convert matrices to lists indexed by arc
         # initialize lists with -1 (invalid arc)
         self.distance = [-1] * len(self.arcs)
@@ -479,7 +446,7 @@ class Data:
                     arc_idx = arc_index_map[(i, j)]
                     dist = distance_matrix[i][j]
                     self.distance[arc_idx] = dist
-                    
+
                     # distance and service min
                     if dist != -1 and dist != 0:
                         self.distance_and_service_min[arc_idx] = dist + aux_min[self.vertex_to_point[j]]
@@ -491,7 +458,7 @@ class Data:
                     else:
                         self.distance_and_service_max[arc_idx] = dist
 
-        # --- demands ---
+        # reading demands
         print("   > Reading demands...")
         skip_hash_line()
         self.demands = []
@@ -505,20 +472,19 @@ class Data:
             for j in range(self.get_nb_intervals()):
                 self.demand_per_day[i] += self.demands[i][j]
 
-        # --- max_time ---
+        # reading max_time
         print("   > Reading maximum time...")
         skip_hash_line()
-        self.max_time = int(file.readline().strip())
+        self.max_time = float(file.readline().strip())
 
-        # --- alpha ---
+        # reading alpha
         print("   > Reading alpha...")
         skip_hash_line()
-        self.alpha = int(file.readline().strip())
+        self.alpha = float(file.readline().strip())
 
         self.assign_incompatible_points()
 
         file.close()
-
         print("   > Reading complete!")
 
     def change_scale(self):
@@ -554,15 +520,14 @@ class Data:
         print("\n\t======================================================================")
         print(f"\tPrinting instance {self.instance_name} from set {self.instance_set}...")
         print("\t======================================================================")
-        
+
         print("number of trains: ", self.nb_trains)
         print("naximum number of trips per train: ", self.max_trips_per_train, end="\n\n")
 
         # display time intervals
         print(f"number of intervals = {self.get_nb_intervals()}")
         for i in range(self.get_nb_intervals()):
-            # formatação semelhante ao setw(6) → largura fixa
-            print(f"\t({self.time_intervals[i][0]}, {self.time_intervals[i][1]:6})", end="")
+            print(f"\t({self.time_intervals[i][0]}, {self.time_intervals[i][1]})", end="")
         print(end="\n\n")
 
         # display points, stations, crossings and depots
@@ -574,7 +539,7 @@ class Data:
                 print(f"{i}", end=" ")
         print()
         print("\tcrossings: ", end="")
-        for i in range(self.nb_points): 
+        for i in range(self.nb_points):
             if self.is_crossing[i]:
                 print(f"{i}", end=" ")
         print()
@@ -705,5 +670,3 @@ class Data:
         print(f"maximum time = {self.max_time}")
         # display alpha
         print(f"alpha = {self.alpha}")
-
-                

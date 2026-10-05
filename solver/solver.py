@@ -18,14 +18,6 @@ def solve(params: dict) -> dict:
     data.read_data_from_dict(params)
     data.change_scale()
 
-    # data.print_data()
-
-    # call model to solve the problem
-    # model = ModelTrainTimetabling(data, THREADS, 21600, 21600, SOLVER)
-    # model.initialize()
-    # model.execute_solver_for_full_model()
-    # model.current_solution.display_solution(data, "model")
-
     # call heuristic to solve the problem
     heuristic = Heuristic(data, THREADS, 21600, 3600, SOLVER)
     total_time = heuristic.execute_heuristic()

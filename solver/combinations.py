@@ -1,41 +1,43 @@
-import numpy as np
 import math
-from threading import Lock
+import threading
+
+import numpy as np
 
 ULLONG_MAX = (1 << 64) - 1
 
 class Combinations:
     def __init__(self, data):
+        # initialize parameters
         self.data = data
 
-        self.all_trips_combinations = None
-        self.unique_combinations = set()
-        self.lock = Lock()
+        self.all_trips_combinations = None  # trip sequences each train can complete
+        self.unique_combinations = set()    # normalized combinations already generated
+
+        # variables used to administrate execution with multiple threads
+        self.unique_combinations_lock = threading.Lock()
 
     def verify_sequence_feasibility(self, seq, route_not_completed):
         flag = True
         last_idx = len(seq) - 1
         for i in range(last_idx):
-            cur = seq[i]
-            nxt = seq[i + 1]
+            current = seq[i]
+            next = seq[i+1]
 
-            if cur != route_not_completed:
+            if current != route_not_completed:
                 # verify compatibility between consecutive routes
-                if nxt != route_not_completed:
-                    if self.data.are_incompatible_routes(cur, nxt):
+                if next != route_not_completed:
+                    if self.data.are_incompatible_routes(current, next):
                         return False
             else:
                 # after a non-trip, no trips can exist
-                if nxt != route_not_completed:
+                if next != route_not_completed:
                     return False
 
         return flag
-        
-    def check_trips_feasibility(self, seq):
 
+    def check_trips_feasibility(self, seq):
         # seq: represents a sequence of trips a single train can complete
         route_not_completed = self.data.nb_routes
-
         # verify whether first route starts at the initial depot
         if seq[0] != route_not_completed:
             if not self.data.is_valid_route(0, 0, seq[0]):
@@ -46,13 +48,10 @@ class Combinations:
                 return False
             else:
                 return True
-
         return self.verify_sequence_feasibility(seq, route_not_completed)
 
     def generate_trips_combinations(self, total, max_trips):
-
         current = np.zeros(max_trips, dtype=np.uint16)
-
         valid_list = []
         routes_plus_1 = self.data.nb_routes + 1
         for _ in range(total):
@@ -65,19 +64,16 @@ class Combinations:
                 if current[pos] < routes_plus_1:
                     break
                 current[pos] = 0
-
         return valid_list
 
     def calculate_trips_combinations(self):
-
         def verify_overflow(base, exp):
             if base <= 1:
                 return False
             return exp * math.log(base) > math.log(ULLONG_MAX)
-
         self.all_trips_combinations = [None] * self.data.nb_trains
-        computed = {}
 
+        computed = {}
         for i in range(self.data.nb_trains):
             max_trips = self.data.max_trips_per_train[i]
 
@@ -109,14 +105,13 @@ class Combinations:
         normalized_tuple = tuple(normalized_combination)
 
         # insert with thread safety
-        with self.lock:
+        with self.unique_combinations_lock:
             if normalized_tuple in self.unique_combinations:
                 return False  # already seen
             self.unique_combinations.add(normalized_tuple)
         return True  # a new combination
 
     def verify_daily_demands(self, combination):
-
         times_vertex_was_visited = [0] * self.data.get_nb_vertices()
         for i in range(len(combination)):
             for j in range(len(combination[i])):
@@ -131,18 +126,11 @@ class Combinations:
         for i in range(self.data.get_nb_vertices()):
             if times_vertex_was_visited[i] < self.data.demand_per_day[i]:
                 return False
-
         return True
 
     def is_valid_combination(self, combination):
-
         if not self.normalize_combination(combination):
             return False
-
         if not self.verify_daily_demands(combination):
             return False
-
         return True
-
-
-
